@@ -2,6 +2,10 @@
   "version": 2,
   "builds": [
     {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
       "src": "api_server.py",
       "use": "@vercel/python"
     }
@@ -9,19 +13,19 @@
   "routes": [
     {
       "src": "/",
-      "dest": "index.html"
+      "dest": "/index.html"
     },
     {
       "src": "/api/(.*)",
-      "dest": "api_server.py"
+      "dest": "/api_server.py"
     },
     {
       "src": "/health",
-      "dest": "api_server.py"
+      "dest": "/api_server.py"
     },
     {
       "src": "/(.*)",
-      "dest": "api_server.py"
+      "dest": "/api_server.py"
     }
   ]
 }
