@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen AI Chat</title>
+    <!--
+        IMPORTANT: This file must be served via HTTP, not opened directly!
+        
+        To run:
+        1. python3 -m http.server 8000
+        2. Open: http://localhost:8000
+        
+        Direct file:// access will cause CORS errors.
+    -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .token-setup {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .token-setup.hidden {
+            display: none;
+        }
+
+        .token-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .token-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .token-help {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 10px;
+        }
+
+        .token-help a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin-left: 10px;
+        }
+
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            margin-right: 10px;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            gap: 10px;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #dee2e6;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .message-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: flex;
+            gap: 5px;
+            padding: 10px;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: loading 1.4s infinite;
+        }
+
+        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes loading {
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1); }
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-bar {
+            padding: 8px 20px;
+            background: #e9ecef;
+            font-size: 12px;
+            color: #6c757d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            display: inline-block;
+            margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Qwen AI Chat</h1>
+            <p>Unofficial Web Client</p>
+        </div>
+
+        <div class="token-setup" id="tokenSetup">
+            <div class="token-input-group">
+                <input 
+                    type="password" 
+                    class="token-input" 
+                    id="tokenInput" 
+                    placeholder="Nhập JWT token của bạn..."
+                >
+                <button class="btn btn-primary" onclick="saveToken()">Lưu Token</button>
+            </div>
+            <div class="token-help">
+                💡 <strong>Cách lấy token:</strong><br>
+                1. Truy cập <a href="https://chat.qwen.ai" target="_blank">chat.qwen.ai</a> và đăng nhập<br>
+                2. Nhấn F12 → Application → Local Storage → chat.qwen.ai<br>
+                3. Copy giá trị của key "token" và paste vào đây
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <span id="statusText">
+                <span class="status-indicator"></span>
+                Đã kết nối
+            </span>
+            <span id="chatInfo">Chat: <strong id="chatId">-</strong></span>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="message assistant">
+                <div class="message-avatar">AI</div>
+                <div class="message-content">
+                    Xin chào! Tôi là Qwen AI. Hãy nhập token của bạn ở trên để bắt đầu chat. 👋
+                </div>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <input 
+                type="text" 
+                class="message-input" 
+                id="messageInput" 
+                placeholder="Nhập tin nhắn..."
+                onkeypress="handleKeyPress(event)"
+                disabled
+            >
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" 
+                          stroke="currentColor" stroke-width="2" 
+                          stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        // IMPORTANT: Use proxy server to avoid CORS issues
+        // Start proxy: python proxy_server.py
+        const API_BASE = 'http://localhost:5001/api';
+        let AUTH_TOKEN = localStorage.getItem('qwen_token') || '';
+        let CURRENT_CHAT_ID = null;
+
+        // Clean token (remove invisible/non-ASCII characters)
+        function cleanToken(token) {
+            // Remove all non-printable and non-ASCII characters
+            return token.replace(/[^\x20-\x7E]/g, '').trim();
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check server mode first
+            if (!checkServerMode()) {
+                return;
+            }
+            
+            let savedToken = localStorage.getItem('qwen_token');
+            
+            if (savedToken) {
+                // Clean token when loading from storage
+                savedToken = cleanToken(savedToken);
+                AUTH_TOKEN = savedToken;
+                localStorage.setItem('qwen_token', savedToken); // Save cleaned version
+                
+                document.getElementById('tokenSetup').classList.add('hidden');
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                addMessage('assistant', 'Xin chào! Token đã được tải. Bạn có thể bắt đầu chat. 😊');
+                initializeChat();
+            } else {
+                addMessage('assistant', '👋 Xin chào! Để bắt đầu, vui lòng nhập token của bạn.');
+            }
+        });
+
+        // Save token
+        function saveToken() {
+            let token = document.getElementById('tokenInput').value.trim();
+            if (!checkServerMode()) {
+                return;
+            }
+            
+            if (!token) {
+                alert('Vui lòng nhập token!');
+                return;
+            }
+            
+            // Clean token of any special characters
+            token = cleanToken(token);
+            
+            // Validate JWT format
+            const jwtPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+            if (!jwtPattern.test(token)) {
+                alert('Token không đúng định dạng JWT!\n\nVui lòng đảm bảo:\n- Copy toàn bộ token\n- Không có khoảng trắng\n- Không có ký tự đặc biệt');
+                console.error('Invalid token format. Expected JWT with 3 parts separated by dots.');
+                return;
+            }
+            
+            AUTH_TOKEN = token;
+            localStorage.setItem('qwen_token', token);
+            document.getElementById('tokenSetup').classList.add('hidden');
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            
+            addMessage('assistant', 'Token đã được lưu! Bạn có thể bắt đầu chat ngay. 😊');
+            initializeChat();
+        }
+
+        // Check if running on proper server
+        function checkServerMode() {
+            const protocol = window.location.protocol;
+            
+            if (protocol === 'file:') {
+                const errorMsg = document.createElement('div');
+                errorMsg.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ff4444;color:white;padding:20px;text-align:center;z-index:10000;font-weight:bold;';
+                errorMsg.innerHTML = `
+                    ⚠️ ERROR: File opened directly!<br>
+                    <span style="font-size:14px;font-weight:normal;">
+                        <strong>Step 1:</strong> Run proxy: <code style="background:#000;padding:4px 8px;border-radius:4px;">python proxy_server.py</code><br>
+                        <strong>Step 2:</strong> Run web server: <code style="background:#000;padding:4px 8px;border-radius:4px;">python3 -m http.server 8000</code><br>
+                        <strong>Step 3:</strong> Open: <code style="background:#000;padding:4px 8px;border-radius:4px;">http://localhost:8000</code><br>
+                        See RUN_WEB_CHAT.md for details.
+                    </span>
+                `;
+                document.body.insertBefore(errorMsg, document.body.firstChild);
+                
+                addMessage('assistant', '❌ Vui lòng chạy cả proxy server VÀ web server. Xem RUN_WEB_CHAT.md');
+                return false;
+            }
+            return true;
+        }
+
+        // Refresh token
+        async function refreshToken() {
+            try {
+                const response = await fetch(`${API_BASE}/v1/auths/`, {
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.token) {
+                    AUTH_TOKEN = data.token;
+                    localStorage.setItem('qwen_token', AUTH_TOKEN);
+                    
+                    const expiresAt = new Date(data.expires_at * 1000);
+                    console.log('✓ Token refreshed. Expires:', expiresAt.toLocaleString());
+                    addMessage('assistant', `🔄 Token đã được làm mới. Hết hạn: ${expiresAt.toLocaleString()}`);
+                    
+                    return true;
+                }
+            } catch (error) {
+                console.error('Error refreshing token:', error);
+                return false;
+            }
+        }
+
+        // Initialize chat
+        async function initializeChat() {
+            try {
+                // Try to refresh token first
+                await refreshToken();
+                
+                const response = await fetch(`${API_BASE}/v2/chats/?page=1`, {
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    CURRENT_CHAT_ID = data.data[0].id;
+                    document.getElementById('chatId').textContent = CURRENT_CHAT_ID.substring(0, 8) + '...';
+                    console.log('Using chat:', CURRENT_CHAT_ID);
+                } else {
+                    addMessage('assistant', '⚠️ Không tìm thấy chat. Vui lòng tạo chat mới trên chat.qwen.ai');
+                }
+            } catch (error) {
+                console.error('Error initializing chat:', error);
+                addMessage('assistant', '❌ Lỗi khi tải chats. Token có thể đã hết hạn.');
+            }
+        }
+
+        // Add message to UI
+        function addMessage(role, content) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = role === 'user' ? 'YOU' : 'AI';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = content;
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+            chatContainer.appendChild(messageDiv);
+            
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Add loading indicator
+        function addLoading() {
+            const chatContainer = document.getElementById('chatContainer');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message assistant';
+            loadingDiv.id = 'loadingMessage';
+            
+            loadingDiv.innerHTML = `
+                <div class="message-avatar">AI</div>
+                <div class="message-content">
+                    <div class="loading">
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                    </div>
+                </div>
+            `;
+            
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Remove loading indicator
+        function removeLoading() {
+            const loadingDiv = document.getElementById('loadingMessage');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || !CURRENT_CHAT_ID) return;
+            
+            // Add user message
+            addMessage('user', message);
+            input.value = '';
+            
+            // Disable input
+            input.disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            
+            // Add loading
+            addLoading();
+            
+            try {
+                // Get chat history to find parent_id
+                const historyResponse = await fetch(`${API_BASE}/v2/chats/${CURRENT_CHAT_ID}`, {
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const historyData = await historyResponse.json();
+                const parentId = historyData.data?.currentId || generateUUID();
+                
+                // Prepare payload
+                const payload = {
+                    stream: true,
+                    incremental_output: true,
+                    chat_id: CURRENT_CHAT_ID,
+                    chat_mode: "normal",
+                    model: "qwen3-max",
+                    parent_id: parentId,
+                    messages: [{
+                        fid: generateUUID(),
+                        parentId: parentId,
+                        childrenIds: [],
+                        role: "user",
+                        content: message,
+                        user_action: "chat",
+                        files: [],
+                        timestamp: Math.floor(Date.now() / 1000),
+                        models: ["qwen3-max"],
+                        chat_type: "t2t",
+                        feature_config: {
+                            thinking_enabled: false,
+                            output_schema: "phase"
+                        },
+                        extra: {
+                            meta: {
+                                subChatType: "t2t"
+                            }
+                        },
+                        sub_chat_type: "t2t",
+                        parent_id: parentId
+                    }],
+                    timestamp: Math.floor(Date.now() / 1000)
+                };
+                
+                // Send request
+                const response = await fetch(`${API_BASE}/v2/chat/completions?chat_id=${CURRENT_CHAT_ID}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream',
+                        'x-accel-buffering': 'no',
+                        'source': 'web'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                removeLoading();
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    addMessage('assistant', `❌ Error: ${errorData.data?.details || 'Unknown error'}`);
+                    return;
+                }
+                
+                // Handle streaming response
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let aiResponse = '';
+                let messageDiv = null;
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data:')) {
+                            const data = line.substring(5).trim();
+                            if (data === '[DONE]') continue;
+                            
+                            try {
+                                const json = JSON.parse(data);
+                                const content = json.output?.text || json.choices?.[0]?.delta?.content || '';
+                                
+                                if (content) {
+                                    aiResponse = content;
+                                    
+                                    // Update or create message
+                                    if (!messageDiv) {
+                                        const chatContainer = document.getElementById('chatContainer');
+                                        messageDiv = document.createElement('div');
+                                        messageDiv.className = 'message assistant';
+                                        messageDiv.innerHTML = `
+                                            <div class="message-avatar">AI</div>
+                                            <div class="message-content"></div>
+                                        `;
+                                        chatContainer.appendChild(messageDiv);
+                                    }
+                                    
+                                    messageDiv.querySelector('.message-content').textContent = aiResponse;
+                                    document.getElementById('chatContainer').scrollTop = 
+                                        document.getElementById('chatContainer').scrollHeight;
+                                }
+                            } catch (e) {
+                                // Ignore parse errors
+                            }
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                removeLoading();
+                console.error('Error:', error);
+                addMessage('assistant', '❌ Lỗi khi gửi tin nhắn. Vui lòng thử lại.');
+            } finally {
+                input.disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                input.focus();
+            }
+        }
+
+        // Handle Enter key
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Generate UUID
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Clear token (for testing)
+        function clearToken() {
+            if (confirm('Xóa token đã lưu?')) {
+                localStorage.removeItem('qwen_token');
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>

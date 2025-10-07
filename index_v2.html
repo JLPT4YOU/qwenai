@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<parameter name="CodeContent"><!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen AI Chat v2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header .status {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 15px;
+            line-height: 1.5;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #333;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-box {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-box:focus {
+            border-color: #667eea;
+        }
+
+        .send-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .token-setup {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .token-setup h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .token-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .system-prompt-panel {
+            padding: 15px;
+            background: #f9f9f9;
+            border-top: 1px solid #e0e0e0;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Qwen AI Chat</h1>
+            <div class="status" id="statusText">Backend API v2</div>
+        </div>
+
+        <div id="tokenSetup" class="token-setup">
+            <h2>🔑 Nhập Token</h2>
+            <p style="color: #666; margin-bottom: 20px;">
+                Lấy token từ <a href="https://chat.qwen.ai" target="_blank">chat.qwen.ai</a>
+                <br>F12 → Application → Local Storage → token
+            </p>
+            <input type="password" class="token-input" id="tokenInput" placeholder="Nhập JWT token...">
+            <button class="btn" onclick="saveToken()">Lưu Token</button>
+        </div>
+
+        <div id="chatArea" class="hidden">
+            <div class="chat-container" id="chatContainer">
+                <!-- Messages will be added here -->
+            </div>
+
+            <!-- System Prompt Panel (collapsible) -->
+            <div class="system-prompt-panel" id="systemPromptPanel" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <strong>🤖 System Prompt (Instructions)</strong>
+                    <button onclick="toggleSystemPrompt()" style="background: none; border: none; cursor: pointer; font-size: 20px;">×</button>
+                </div>
+                <textarea id="systemPromptInput" 
+                          placeholder="Ví dụ: Bạn là chuyên gia lập trình Python. Luôn giải thích code rõ ràng..."
+                          style="width: 100%; height: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; resize: vertical;"></textarea>
+                
+                <!-- Model selector -->
+                <div style="margin-top: 12px;">
+                    <label style="font-size: 13px; color: #666; display: block; margin-bottom: 5px;">Model:</label>
+                    <select id="modelSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        <option value="qwen3-max">🏆 Qwen3-Max (Recommended)</option>
+                        <option value="qwen3-coder">💻 Qwen3-Coder (Coding)</option>
+                        <option value="qwen3-vl-plus">👁️ Qwen3-VL (Vision + Thinking)</option>
+                        <option value="qwen3-omni-flash">⚡ Qwen3-Omni-Flash (Fast)</option>
+                        <option value="qwen2.5-turbo">⚡ Qwen2.5-Turbo (Fast)</option>
+                        <option value="qwq-32b">🧠 QwQ-32B (Reasoning)</option>
+                        <option value="qwen2.5-14b-instruct-1m">📚 Qwen2.5-14B (1M context)</option>
+                    </select>
+                </div>
+                
+                <!-- Feature toggles -->
+                <div style="margin-top: 12px; display: flex; gap: 20px;">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="checkbox" id="thinkingToggle" style="cursor: pointer;">
+                        <span style="font-size: 13px;">💭 Thinking Mode</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="checkbox" id="searchToggle" style="cursor: pointer;">
+                        <span style="font-size: 13px;">🌐 Internet Search</span>
+                    </label>
+                </div>
+                
+                <div style="margin-top: 8px; font-size: 11px; color: #666;">
+                    💡 System prompt sẽ được gửi cùng mỗi tin nhắn để hướng dẫn AI trả lời theo ý bạn
+                </div>
+            </div>
+
+            <div class="input-area">
+                <button onclick="toggleSystemPrompt()" 
+                        style="width: 40px; height: 40px; border: none; background: #f0f0f0; border-radius: 8px; cursor: pointer; margin-right: 5px;"
+                        title="Toggle System Prompt">
+                    🤖
+                </button>
+                <input type="text" class="input-box" id="messageInput" 
+                       placeholder="Nhập tin nhắn..." 
+                       onkeypress="handleKeyPress(event)"
+                       disabled>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" 
+                              stroke="currentColor" stroke-width="2" 
+                              stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Use new backend API
+        const API_BASE = 'http://localhost:5001/api';
+        let AUTH_TOKEN = localStorage.getItem('qwen_token') || '';
+        let CURRENT_CHAT_ID = null;
+
+        // Clean token
+        function cleanToken(token) {
+            return token.replace(/[^\x20-\x7E]/g, '').trim();
+        }
+
+        // Save token
+        function saveToken() {
+            let token = document.getElementById('tokenInput').value.trim();
+            token = cleanToken(token);
+            
+            if (!token) {
+                alert('Vui lòng nhập token!');
+                return;
+            }
+            
+            // Validate JWT format
+            const jwtPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+            if (!jwtPattern.test(token)) {
+                alert('Token không đúng định dạng JWT!');
+                return;
+            }
+            
+            AUTH_TOKEN = token;
+            localStorage.setItem('qwen_token', token);
+            
+            // Hide token setup, show chat
+            document.getElementById('tokenSetup').classList.add('hidden');
+            document.getElementById('chatArea').classList.remove('hidden');
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            
+            addMessage('assistant', '✅ Token đã lưu! Đang tải chats...');
+            initializeChat();
+        }
+
+        // Initialize chat
+        async function initializeChat() {
+            try {
+                // Get chats list
+                const response = await fetch(`${API_BASE}/chats`, {
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    CURRENT_CHAT_ID = data.data[0].id;
+                    document.getElementById('statusText').textContent = 
+                        `Chat: ${CURRENT_CHAT_ID.substring(0, 8)}... | ${data.total} chats`;
+                    addMessage('assistant', `🎉 Sẵn sàng! Đang dùng chat: ${CURRENT_CHAT_ID.substring(0, 16)}...`);
+                } else {
+                    addMessage('assistant', '⚠️ Không tìm thấy chat. Vui lòng tạo chat trên chat.qwen.ai trước.');
+                }
+            } catch (error) {
+                console.error('Init error:', error);
+                addMessage('assistant', '❌ Lỗi kết nối API. Đảm bảo api_server.py đang chạy!');
+            }
+        }
+
+        // Add message to UI
+        function addMessage(role, content) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${role === 'user' ? 'YOU' : 'AI'}</div>
+                <div class="message-content">${content}</div>
+            `;
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            const systemPrompt = document.getElementById('systemPromptInput').value.trim();
+            const selectedModel = document.getElementById('modelSelect').value;
+            const thinkingEnabled = document.getElementById('thinkingToggle').checked;
+            const searchEnabled = document.getElementById('searchToggle').checked;
+            
+            if (!message || !CURRENT_CHAT_ID) return;
+            
+            // Add user message
+            addMessage('user', message);
+            input.value = '';
+            input.disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            
+            // Add loading indicator with features status
+            let statusText = '⏳ Đang';
+            if (thinkingEnabled) statusText += ' suy nghĩ';
+            if (searchEnabled) statusText += ' tìm kiếm';
+            statusText += '...';
+            addMessage('assistant', statusText);
+            
+            try {
+                const payload = {
+                    chat_id: CURRENT_CHAT_ID,
+                    message: message,
+                    model: selectedModel,  // Use selected model
+                    stream: false  // Use non-streaming for simplicity
+                };
+                
+                // Add optional parameters
+                if (systemPrompt) {
+                    payload.system_prompt = systemPrompt;
+                }
+                if (thinkingEnabled) {
+                    payload.thinking_enabled = true;
+                }
+                if (searchEnabled) {
+                    payload.search_enabled = true;
+                }
+                
+                const response = await fetch(`${API_BASE}/chat/send`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                
+                // Remove loading message
+                const messages = document.querySelectorAll('.message');
+                messages[messages.length - 1].remove();
+                
+                if (data.success) {
+                    // Show thinking content if available
+                    if (data.data.thinking) {
+                        addMessage('assistant', `💭 Thinking:\n\n${data.data.thinking.substring(0, 500)}...`);
+                    }
+                    
+                    // Show main response
+                    const aiResponse = data.data.content || 'No response';
+                    addMessage('assistant', aiResponse);
+                } else {
+                    addMessage('assistant', '❌ Lỗi: ' + (data.error || 'Unknown error'));
+                }
+                
+            } catch (error) {
+                console.error('Send error:', error);
+                const messages = document.querySelectorAll('.message');
+                messages[messages.length - 1].remove();
+                addMessage('assistant', '❌ Lỗi kết nối! Kiểm tra api_server.py');
+            } finally {
+                input.disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                input.focus();
+            }
+        }
+
+        // Toggle system prompt panel
+        function toggleSystemPrompt() {
+            const panel = document.getElementById('systemPromptPanel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // Handle Enter key
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedToken = localStorage.getItem('qwen_token');
+            
+            if (savedToken) {
+                AUTH_TOKEN = cleanToken(savedToken);
+                document.getElementById('tokenSetup').classList.add('hidden');
+                document.getElementById('chatArea').classList.remove('hidden');
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                addMessage('assistant', '👋 Xin chào! Đang tải...');
+                initializeChat();
+            }
+        });
+    </script>
+</body>
+</html>
