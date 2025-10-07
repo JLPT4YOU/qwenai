@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen Personal API - Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .nav {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        h3 {
+            color: #764ba2;
+            margin: 20px 0 10px 0;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+            position: relative;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .copy-btn:hover {
+            background: #764ba2;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .endpoint {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .method {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+
+        .method.post { background: #28a745; color: white; }
+        .method.get { background: #17a2b8; color: white; }
+        .method.delete { background: #dc3545; color: white; }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .param-table th,
+        .param-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .param-table th {
+            background: #667eea;
+            color: white;
+        }
+
+        .param-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .badge.required { background: #dc3545; color: white; }
+        .badge.optional { background: #6c757d; color: white; }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .alert.success { background: #d4edda; border-left: 4px solid #28a745; color: #155724; }
+        .alert.info { background: #d1ecf1; border-left: 4px solid #17a2b8; color: #0c5460; }
+        .alert.warning { background: #fff3cd; border-left: 4px solid #ffc107; color: #856404; }
+
+        .tab-container {
+            margin: 20px 0;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border: none;
+            border-radius: 10px 10px 0 0;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 0 10px 10px 10px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        footer {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            color: #666;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2em; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .nav { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Qwen Personal API</h1>
+            <p class="subtitle">API cá nhân với 19 models, thinking mode, internet search</p>
+            <div class="nav">
+                <button class="nav-btn" onclick="scrollTo('#setup')">📦 Setup</button>
+                <button class="nav-btn" onclick="scrollTo('#features')">✨ Features</button>
+                <button class="nav-btn" onclick="scrollTo('#endpoints')">🔌 Endpoints</button>
+                <button class="nav-btn" onclick="scrollTo('#examples')">💻 Examples</button>
+                <button class="nav-btn" onclick="scrollTo('#models')">🤖 Models</button>
+            </div>
+        </header>
+
+        <div class="section" id="setup">
+            <h2>📦 Quick Setup (5 phút)</h2>
+            
+            <div class="alert info">
+                <strong>🎯 Mục tiêu:</strong> Deploy API của bạn lên Vercel và dùng ngay!
+            </div>
+
+            <h3>Bước 1: Lấy Token</h3>
+            <ol>
+                <li>Vào <a href="https://chat.qwen.ai" target="_blank">chat.qwen.ai</a></li>
+                <li>Nhấn <code>F12</code> → <strong>Application</strong> → <strong>Cookies</strong></li>
+                <li>Copy giá trị của <code>token</code></li>
+            </ol>
+
+            <h3>Bước 2: Deploy lên Vercel</h3>
+            
+            <div class="tab-container">
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('web-deploy')">🌐 Web Interface</button>
+                    <button class="tab" onclick="showTab('cli-deploy')">⚡ CLI</button>
+                </div>
+                
+                <div id="web-deploy" class="tab-content active">
+                    <ol>
+                        <li>Vào <a href="https://vercel.com/new" target="_blank">vercel.com/new</a></li>
+                        <li>Import: <code>JLPT4YOU/qwenai</code></li>
+                        <li>Add Environment Variables:
+                            <ul>
+                                <li><strong>QWEN_TOKEN</strong> = (token từ bước 1)</li>
+                                <li><strong>ADMIN_KEY</strong> = <code>3SW_mAZQLynHrIJpgioDu3OmZDHwFK_KDCaeHKu6nso</code></li>
+                            </ul>
+                        </li>
+                        <li>Click <strong>Deploy</strong></li>
+                    </ol>
+                </div>
+                
+                <div id="cli-deploy" class="tab-content">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre># Cài Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel
+
+# Add env vars
+vercel env add QWEN_TOKEN production
+vercel env add ADMIN_KEY production
+
+# Deploy production
+vercel --prod</pre>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Bước 3: Test API</h3>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>curl https://YOUR_PROJECT.vercel.app/health</pre>
+            </div>
+
+            <div class="alert success">
+                <strong>✅ Xong!</strong> API của bạn đã sẵn sàng tại: <code>https://YOUR_PROJECT.vercel.app</code>
+            </div>
+        </div>
+
+        <div class="section" id="features">
+            <h2>✨ Tính Năng</h2>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>19 Models</h3>
+                    <p>Từ Qwen3-Max đến specialized models cho coding, vision, reasoning</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">💭</div>
+                    <h3>Thinking Mode</h3>
+                    <p>Xem quá trình suy nghĩ của AI - perfect cho bài toán phức tạp</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Internet Search</h3>
+                    <p>Lấy thông tin mới nhất từ internet với source citations</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>System Prompts</h3>
+                    <p>Custom instructions để hướng dẫn AI trả lời theo ý bạn</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="endpoints">
+            <h2>🔌 API Endpoints</h2>
+
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/chat/quick</code>
+                <p style="margin-top: 10px;">Chat nhanh - tự động chọn conversation gần nhất</p>
+                
+                <h4>Request Body:</h4>
+                <table class="param-table">
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Required</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><code>message</code></td>
+                        <td>string</td>
+                        <td><span class="badge required">Required</span></td>
+                        <td>Câu hỏi của bạn</td>
+                    </tr>
+                    <tr>
+                        <td><code>model</code></td>
+                        <td>string</td>
+                        <td><span class="badge optional">Optional</span></td>
+                        <td>Model ID (default: qwen3-max)</td>
+                    </tr>
+                    <tr>
+                        <td><code>thinking_enabled</code></td>
+                        <td>boolean</td>
+                        <td><span class="badge optional">Optional</span></td>
+                        <td>Bật thinking mode</td>
+                    </tr>
+                    <tr>
+                        <td><code>search_enabled</code></td>
+                        <td>boolean</td>
+                        <td><span class="badge optional">Optional</span></td>
+                        <td>Bật internet search</td>
+                    </tr>
+                    <tr>
+                        <td><code>system_prompt</code></td>
+                        <td>string</td>
+                        <td><span class="badge optional">Optional</span></td>
+                        <td>Custom instructions</td>
+                    </tr>
+                </table>
+
+                <h4>Example:</h4>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>curl -X POST https://YOUR_API.vercel.app/api/chat/quick \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Giải thích Python decorators",
+    "model": "qwen3-max",
+    "thinking_enabled": false,
+    "search_enabled": false
+  }'</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <code>/api/models</code>
+                <p style="margin-top: 10px;">Liệt kê tất cả 19 models có sẵn</p>
+                
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>curl -H "Authorization: Bearer YOUR_TOKEN" \
+     https://YOUR_API.vercel.app/api/models</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <code>/api/admin/token</code>
+                <p style="margin-top: 10px;">Update token khi expires - <strong>không cần redeploy!</strong></p>
+                
+                <div class="alert warning">
+                    <strong>⚠️ Chú ý:</strong> Cần <code>admin_key</code> để bảo mật
+                </div>
+
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre>curl -X POST https://YOUR_API.vercel.app/api/admin/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "NEW_TOKEN_FROM_BROWSER",
+    "admin_key": "YOUR_ADMIN_KEY"
+  }'</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="examples">
+            <h2>💻 Code Examples</h2>
+
+            <div class="tab-container">
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('python-ex')">🐍 Python</button>
+                    <button class="tab" onclick="showTab('js-ex')">📜 JavaScript</button>
+                    <button class="tab" onclick="showTab('curl-ex')">⚡ cURL</button>
+                </div>
+                
+                <div id="python-ex" class="tab-content active">
+                    <h3>Simple Chat</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>import requests
+
+API = "https://YOUR_API.vercel.app"
+TOKEN = "your-token"
+
+def ask(question):
+    response = requests.post(
+        f"{API}/api/chat/quick",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        json={"message": question}
+    )
+    return response.json()["data"]["content"]
+
+print(ask("What is Python?"))</pre>
+                    </div>
+
+                    <h3>With All Features</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>response = requests.post(
+    f"{API}/api/chat/quick",
+    headers={"Authorization": f"Bearer {TOKEN}"},
+    json={
+        "message": "Phân tích xu hướng AI 2025",
+        "model": "qwen3-max",
+        "thinking_enabled": True,
+        "search_enabled": True,
+        "system_prompt": "Bạn là AI expert"
+    }
+)
+
+data = response.json()["data"]
+print("Thinking:", data.get("thinking", "N/A"))
+print("Answer:", data["content"])</pre>
+                    </div>
+                </div>
+                
+                <div id="js-ex" class="tab-content">
+                    <h3>Node.js / Browser</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>const API = "https://YOUR_API.vercel.app";
+const TOKEN = "your-token";
+
+async function ask(message, options = {}) {
+  const response = await fetch(`${API}/api/chat/quick`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message,
+      ...options
+    })
+  });
+  
+  const data = await response.json();
+  return data.data.content;
+}
+
+// Usage
+ask("Hello!").then(console.log);
+
+// With features
+ask("Latest AI news", { 
+  search_enabled: true 
+}).then(console.log);</pre>
+                    </div>
+                </div>
+                
+                <div id="curl-ex" class="tab-content">
+                    <h3>Basic Request</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl -X POST https://YOUR_API.vercel.app/api/chat/quick \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello!"}'</pre>
+                    </div>
+
+                    <h3>With Thinking</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl -X POST https://YOUR_API.vercel.app/api/chat/quick \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{
+    "message": "Solve math problem",
+    "thinking_enabled": true
+  }'</pre>
+                    </div>
+
+                    <h3>With Search</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre>curl -X POST https://YOUR_API.vercel.app/api/chat/quick \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{
+    "message": "Latest news today",
+    "search_enabled": true
+  }'</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="models">
+            <h2>🤖 Available Models</h2>
+
+            <table class="param-table">
+                <tr>
+                    <th>Model ID</th>
+                    <th>Name</th>
+                    <th>Best For</th>
+                    <th>Speed</th>
+                </tr>
+                <tr>
+                    <td><code>qwen3-max</code></td>
+                    <td>Qwen3-Max</td>
+                    <td>All-around (recommended)</td>
+                    <td>⭐⭐⭐</td>
+                </tr>
+                <tr>
+                    <td><code>qwen3-coder</code></td>
+                    <td>Qwen3-Coder</td>
+                    <td>Code generation</td>
+                    <td>⭐⭐⭐⭐</td>
+                </tr>
+                <tr>
+                    <td><code>qwen3-vl-plus</code></td>
+                    <td>Qwen3-VL</td>
+                    <td>Vision + Thinking</td>
+                    <td>⭐⭐</td>
+                </tr>
+                <tr>
+                    <td><code>qwen3-omni-flash</code></td>
+                    <td>Qwen3-Omni-Flash</td>
+                    <td>Fast responses</td>
+                    <td>⭐⭐⭐⭐⭐</td>
+                </tr>
+                <tr>
+                    <td><code>qwq-32b</code></td>
+                    <td>QwQ-32B</td>
+                    <td>Complex reasoning</td>
+                    <td>⭐⭐⭐</td>
+                </tr>
+                <tr>
+                    <td><code>qwen2.5-14b-instruct-1m</code></td>
+                    <td>Qwen2.5-14B-1M</td>
+                    <td>Long documents (1M context!)</td>
+                    <td>⭐⭐⭐</td>
+                </tr>
+            </table>
+
+            <div class="alert info">
+                <strong>💡 Tip:</strong> Xem đầy đủ 19 models tại <code>/api/models</code>
+            </div>
+        </div>
+
+        <footer>
+            <p><strong>🤖 Qwen Personal API</strong></p>
+            <p>GitHub: <a href="https://github.com/JLPT4YOU/qwenai" target="_blank">JLPT4YOU/qwenai</a></p>
+            <p>Made with ❤️ for AI community</p>
+        </footer>
+    </div>
+
+    <script>
+        function scrollTo(selector) {
+            document.querySelector(selector).scrollIntoView({ 
+                behavior: 'smooth' 
+            });
+        }
+
+        function showTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Add active to clicked tab
+            event.target.classList.add('active');
+        }
+
+        function copyCode(button) {
+            const codeBlock = button.nextElementSibling;
+            const code = codeBlock.textContent;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

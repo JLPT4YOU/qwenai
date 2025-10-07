@@ -46,6 +46,7 @@ Thumbs.db
 
 # Token storage (sensitive)
 .token_storage.json
+ADMIN_KEY.txt
 
 # Test files output
 models_response.json
