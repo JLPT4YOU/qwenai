@@ -8,6 +8,18 @@
   ],
   "routes": [
     {
+      "src": "/",
+      "dest": "index.html"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "api_server.py"
+    },
+    {
+      "src": "/health",
+      "dest": "api_server.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "api_server.py"
     }
