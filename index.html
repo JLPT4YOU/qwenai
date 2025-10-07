@@ -264,6 +264,8 @@
             <div class="nav">
                 <button class="nav-btn" onclick="scrollTo('#setup')">📦 Setup</button>
                 <button class="nav-btn" onclick="scrollTo('#features')">✨ Features</button>
+                <button class="nav-btn" onclick="scrollTo('#system-prompts')">🎯 System Prompts</button>
+                <button class="nav-btn" onclick="scrollTo('#conversation')">💬 Conversation</button>
                 <button class="nav-btn" onclick="scrollTo('#endpoints')">🔌 Endpoints</button>
                 <button class="nav-btn" onclick="scrollTo('#examples')">💻 Examples</button>
                 <button class="nav-btn" onclick="scrollTo('#models')">🤖 Models</button>
@@ -271,20 +273,36 @@
         </header>
 
         <div class="section" id="setup">
-            <h2>📦 Quick Setup (5 phút)</h2>
+            <h2>📦 Complete Setup Guide</h2>
             
             <div class="alert info">
-                <strong>🎯 Mục tiêu:</strong> Deploy API của bạn lên Vercel và dùng ngay!
+                <strong>🎯 Mục tiêu:</strong> Deploy API của bạn lên Vercel, config đầy đủ, và dùng ngay!
             </div>
 
-            <h3>Bước 1: Lấy Token</h3>
+            <h3>🔑 Bước 1: Lấy Token & Admin Key</h3>
+            
+            <h4>1.1. Token (Required)</h4>
             <ol>
-                <li>Vào <a href="https://chat.qwen.ai" target="_blank">chat.qwen.ai</a></li>
+                <li>Vào <a href="https://chat.qwen.ai" target="_blank">chat.qwen.ai</a> và login</li>
                 <li>Nhấn <code>F12</code> → <strong>Application</strong> → <strong>Cookies</strong></li>
                 <li>Copy giá trị của <code>token</code></li>
+                <li>Lưu lại (expires sau ~7 ngày)</li>
             </ol>
 
-            <h3>Bước 2: Deploy lên Vercel</h3>
+            <div class="code-block">
+                <pre>Example token:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImY0NTA2Yj...</pre>
+            </div>
+
+            <h4>1.2. Admin Key (Required)</h4>
+            <p>Generate một key bảo mật:</p>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>python -c "import secrets; print(secrets.token_urlsafe(32))"</pre>
+            </div>
+            <p>Hoặc dùng key có sẵn trong <code>ADMIN_KEY.txt</code></p>
+
+            <h3>🚀 Bước 2: Deploy lên Vercel</h3>
             
             <div class="tab-container">
                 <div class="tabs">
@@ -459,6 +477,164 @@ vercel --prod</pre>
     "admin_key": "YOUR_ADMIN_KEY"
   }'</pre>
                 </div>
+            </div>
+        </div>
+
+        <div class="section" id="system-prompts">
+            <h2>🎯 System Prompts (AI Instructions)</h2>
+            
+            <div class="alert info">
+                <strong>💡 System Prompts:</strong> Hướng dẫn AI trả lời theo cách bạn muốn
+            </div>
+
+            <h3>Cách Dùng</h3>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>{
+  "message": "Giải thích Python",
+  "system_prompt": "Bạn là Python expert. Trả lời ngắn gọn, có ví dụ code."
+}</pre>
+            </div>
+
+            <h3>Templates Hữu Ích</h3>
+            
+            <h4>1. Trả Lời Ngắn Gọn</h4>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>"system_prompt": "Trả lời tối đa 2-3 câu. Ngắn gọn, súc tích."</pre>
+            </div>
+
+            <h4>2. Code Expert</h4>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>"system_prompt": "Bạn là senior developer. Code phải có type hints, docstrings, và comments. Giải thích rõ ràng."</pre>
+            </div>
+
+            <h4>3. Học Thuật</h4>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>"system_prompt": "Bạn là giáo sư đại học. Giải thích như đang dạy sinh viên, có ví dụ cụ thể."</pre>
+            </div>
+
+            <h4>4. Format JSON</h4>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>"system_prompt": "Luôn trả về JSON format với structure: {\"answer\": \"...\", \"explanation\": \"...\"}"</pre>
+            </div>
+
+            <h4>5. Vietnamese Only</h4>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>"system_prompt": "Luôn trả lời bằng tiếng Việt. Dùng từ ngữ đơn giản, dễ hiểu."</pre>
+            </div>
+        </div>
+
+        <div class="section" id="conversation">
+            <h2>💬 Maintain Conversation Context</h2>
+            
+            <div class="alert warning">
+                <strong>⚠️ Quan trọng:</strong> Để AI nhớ context của cuộc trò chuyện, bạn phải dùng <code>parent_id</code>
+            </div>
+
+            <h3>Cách Hoạt Động</h3>
+            <p>Mỗi message có một <code>message_id</code>. Để tiếp tục hội thoại, gửi <code>parent_id</code> = message_id của tin nhắn trước.</p>
+
+            <h3>Ví Dụ Flow</h3>
+            
+            <h4>Message 1 (Bắt đầu)</h4>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>POST /api/chat/send
+{
+  "chat_id": "your-chat-id",
+  "message": "Python là gì?",
+  "parent_id": null  // hoặc không gửi
+}
+
+Response:
+{
+  "success": true,
+  "data": {
+    "content": "Python là ngôn ngữ lập trình...",
+    "message_id": "msg-123"  // Lưu lại!
+  }
+}</pre>
+            </div>
+
+            <h4>Message 2 (Tiếp tục)</h4>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>POST /api/chat/send
+{
+  "chat_id": "your-chat-id",
+  "message": "Cho ví dụ code đi",
+  "parent_id": "msg-123"  // ← Link với message trước!
+}
+
+// AI sẽ nhớ bạn đang hỏi về Python</pre>
+            </div>
+
+            <h4>Message 3 (Tiếp)</h4>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>POST /api/chat/send
+{
+  "chat_id": "your-chat-id",
+  "message": "Giải thích decorator trong đó",
+  "parent_id": "msg-456"  // ID của message 2
+}
+
+// AI nhớ cả context: Python → Code example → Decorator</pre>
+            </div>
+
+            <h3>Implementation Example</h3>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                <pre>class ConversationManager:
+    def __init__(self, api_url, token, chat_id):
+        self.api_url = api_url
+        self.token = token
+        self.chat_id = chat_id
+        self.last_message_id = None  # Track parent_id
+    
+    def send(self, message):
+        payload = {
+            "chat_id": self.chat_id,
+            "message": message
+        }
+        
+        # Add parent_id to maintain context
+        if self.last_message_id:
+            payload["parent_id"] = self.last_message_id
+        
+        response = requests.post(
+            f"{self.api_url}/api/chat/send",
+            headers={"Authorization": f"Bearer {self.token}"},
+            json=payload
+        )
+        
+        data = response.json()["data"]
+        
+        # Save message_id for next message
+        self.last_message_id = data.get("message_id")
+        
+        return data["content"]
+
+# Usage
+conv = ConversationManager(API_URL, TOKEN, CHAT_ID)
+
+print(conv.send("Python là gì?"))
+# → "Python là ngôn ngữ lập trình..."
+
+print(conv.send("Cho ví dụ"))
+# → AI nhớ đang nói về Python, trả về code example
+
+print(conv.send("Giải thích decorator trong đó"))
+# → AI nhớ cả code example trước, giải thích decorator</pre>
+            </div>
+
+            <div class="alert success">
+                <strong>✅ Best Practice:</strong> Luôn lưu <code>message_id</code> và dùng làm <code>parent_id</code> cho message tiếp theo!
             </div>
         </div>
 
