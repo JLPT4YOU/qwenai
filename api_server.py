@@ -36,13 +36,45 @@ def save_token(token):
         json.dump({'token': token, 'updated_at': int(time.time())}, f)
 
 # Global client instance (will be initialized per request with token)
-def get_client(token):
+def get_token_from_request():
+    """
+    Get token from request or environment variable
+    Priority: 
+    1. Authorization header from user
+    2. QWEN_TOKEN from environment variable
+    3. Stored token from file
+    """
+    # Try to get from Authorization header
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if token:
+        return token
+    
+    # Try to get from environment variable
+    env_token = os.getenv('QWEN_TOKEN')
+    if env_token:
+        return env_token
+    
+    # Try to get from stored file
+    stored_token = load_stored_token()
+    if stored_token:
+        return stored_token
+    
+    return None
+
+def get_client(token=None):
     """Get QwenClient instance with token"""
+    if not token:
+        token = get_token_from_request()
+    
+    if not token:
+        raise ValueError("No token available")
+    
     if token in _client_cache:
         return _client_cache[token]
     client = QwenClient(auth_token=token)
     _client_cache[token] = client
     return client
+
 # Health & Status Endpoints
 # ============================================================
 
@@ -58,14 +90,12 @@ def health():
 @app.route('/api/models', methods=['GET'])
 def list_models():
     """List available Qwen models"""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        return jsonify({"error": "No authorization token"}), 401
-    
     try:
-        client = get_client(token)
+        client = get_client()
         models = client.list_models()
         return jsonify(models)
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -129,57 +159,51 @@ def get_token_info():
 @app.route('/api/user/status', methods=['GET'])
 def user_status():
     """Get user status"""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        return jsonify({"error": "No authorization token"}), 401
-    
     try:
-        client = get_client(token)
+        client = get_client()
         status = client.get_user_status()
         return jsonify(status)
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 # ============================================================
-# Token Management
 # ============================================================
 
 @app.route('/api/token/refresh', methods=['POST'])
 def refresh_token():
     """Refresh authentication token"""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        return jsonify({"error": "No authorization token"}), 401
-    
     try:
-        client = get_client(token)
-        info = client.refresh_token()
+        client = get_client()
+        new_token = client.refresh_token()
+        
+        # Save the new token
+        save_token(new_token)
+        
         return jsonify({
             "success": True,
-            "token": info.get('token'),
-            "expires_at": info.get('expires_at'),
-            "user": {
-                "id": info.get('id'),
-                "email": info.get('email'),
-                "name": info.get('name')
-            }
+            "token": new_token,
+            "message": "Token refreshed successfully"
         })
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/token/info', methods=['GET'])
 def token_info():
     """Get token information"""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        return jsonify({"error": "No authorization token"}), 401
-    
     try:
-        client = get_client(token)
-        info = client.get_token_info()
+        token = get_token_from_request()
+        if not token:
+            return jsonify({"error": "No authorization token"}), 401
+        
         return jsonify({
-            "success": True,
-            "data": info
+            "token_length": len(token),
+            "token_preview": token[:10] + "..." + token[-10:] if len(token) > 20 else "***",
+            "has_token": True,
+            "source": "header" if request.headers.get('Authorization') else "environment"
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -191,54 +215,48 @@ def token_info():
 @app.route('/api/chats', methods=['GET'])
 def list_chats():
     """List all chats"""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        return jsonify({"error": "No authorization token"}), 401
-    
     page = request.args.get('page', 1, type=int)
     
     try:
-        client = get_client(token)
+        client = get_client()
         chats = client.list_chats(page=page)
         return jsonify({
             "success": True,
             "data": chats.get('data', []),
             "total": len(chats.get('data', []))
         })
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/chats/<chat_id>', methods=['GET'])
 def get_chat(chat_id):
     """Get chat history"""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        return jsonify({"error": "No authorization token"}), 401
-    
     try:
-        client = get_client(token)
+        client = get_client()
         history = client.get_chat_history(chat_id)
         return jsonify({
             "success": True,
             "data": history
         })
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/chats/<chat_id>', methods=['DELETE'])
 def delete_chat(chat_id):
     """Delete a chat"""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        return jsonify({"error": "No authorization token"}), 401
-    
     try:
-        client = get_client(token)
+        client = get_client()
         success = client.delete_chat(chat_id)
         return jsonify({
             "success": success,
             "message": "Chat deleted successfully" if success else "Failed to delete chat"
         })
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -259,10 +277,6 @@ def send_message():
         "stream": false  // always false for now
     }
     """
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        return jsonify({"error": "No authorization token"}), 401
-    
     data = request.get_json()
     chat_id = data.get('chat_id')
     message = data.get('message')
@@ -275,7 +289,7 @@ def send_message():
         return jsonify({"error": "chat_id and message are required"}), 400
     
     try:
-        client = get_client(token)
+        client = get_client()
         
         # Capture stdout to get the streamed response
         import sys
@@ -315,7 +329,8 @@ def send_message():
             "success": True,
             "data": response_data
         })
-            
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -332,10 +347,6 @@ def quick_chat():
         "model": "qwen3-max"  // optional
     }
     """
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        return jsonify({"error": "No authorization token"}), 401
-    
     data = request.get_json()
     message = data.get('message')
     model = data.get('model', 'qwen3-max')
@@ -347,7 +358,7 @@ def quick_chat():
         return jsonify({"error": "message is required"}), 400
     
     try:
-        client = get_client(token)
+        client = get_client()
         
         # Get most recent chat
         chats = client.list_chats(page=1)
@@ -394,7 +405,8 @@ def quick_chat():
             "chat_id": chat_id,
             "data": response_data
         })
-        
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -407,12 +419,8 @@ def quick_chat():
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
     """Get user statistics"""
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        return jsonify({"error": "No authorization token"}), 401
-    
     try:
-        client = get_client(token)
+        client = get_client()
         
         # Get chats
         chats = client.list_chats(page=1)
@@ -432,7 +440,8 @@ def get_stats():
                 "token_expires_at": info.get('expires_at')
             }
         })
-        
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
