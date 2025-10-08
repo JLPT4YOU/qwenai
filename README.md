@@ -7,6 +7,9 @@
 ## ✨ Features
 
 - ✅ **19 AI Models** - From Qwen3-Max to specialized coding/vision models
+- ✅ **File Upload** - 🆕 Upload images & documents (PDF, DOCX, etc.)
+- ✅ **Vision Analysis** - OCR, image understanding, visual Q&A
+- ✅ **Document RAG** - Chat with PDFs, analyze documents
 - ✅ **Thinking Mode** - See AI's reasoning process (perfect for complex problems)
 - ✅ **Internet Search** - Get latest information with source citations
 - ✅ **System Prompts** - Custom instructions to guide AI behavior
@@ -88,8 +91,24 @@ curl -X POST https://your-api.vercel.app/api/chat/quick \
   -H "Authorization: Bearer TOKEN" \
   -d '{
     "message": "Write Python hello world",
-    "model": "qwen3-coder"
+    "model": "qwen-coder-plus"
   }'
+```
+
+**Upload Files (NEW!):**
+```bash
+# Upload image for analysis
+curl -X POST https://your-api.vercel.app/api/chat/send-with-files \
+  -H "Authorization: Bearer TOKEN" \
+  -F "message=What's in this image?" \
+  -F "files=@photo.jpg" \
+  -F "model=qwen-vl-max"
+
+# Upload PDF for Q&A
+curl -X POST https://your-api.vercel.app/api/chat/send-with-files \
+  -H "Authorization: Bearer TOKEN" \
+  -F "message=Summarize this document" \
+  -F "files=@document.pdf"
 ```
 
 ## 🔧 All Endpoints
@@ -100,6 +119,9 @@ curl -X POST https://your-api.vercel.app/api/chat/quick \
 | `/api/models` | GET | List all 19 models |
 | `/api/chat/quick` | POST | Quick chat (auto-select chat) |
 | `/api/chat/send` | POST | Send to specific chat |
+| `/api/chat/send-with-files` | POST | 🆕 Chat with file uploads |
+| `/api/files/upload` | POST | 🆕 Upload file only |
+| `/api/files/sts-token` | POST | 🆕 Get STS token |
 | `/api/chats` | GET | List all chats |
 | `/api/admin/token` | POST | Update token (no redeploy!) |
 
@@ -108,13 +130,14 @@ curl -X POST https://your-api.vercel.app/api/chat/quick \
 | Model | Best For | Speed |
 |-------|----------|-------|
 | `qwen3-max` | General purpose (recommended) | ⭐⭐⭐ |
-| `qwen3-coder` | Code generation | ⭐⭐⭐⭐ |
-| `qwen3-vl-plus` | Vision + Thinking | ⭐⭐ |
-| `qwen3-omni-flash` | Fast responses | ⭐⭐⭐⭐⭐ |
-| `qwq-32b` | Complex reasoning | ⭐⭐⭐ |
-| `qwen2.5-14b-instruct-1m` | Long documents (1M context!) | ⭐⭐⭐ |
+| `qwen-vl-max` | 🆕 Vision, OCR, image analysis | ⭐⭐⭐ |
+| `qwen-coder-plus` | Code generation | ⭐⭐⭐⭐ |
+| `qwen-plus` | Fast general tasks | ⭐⭐⭐⭐ |
+| `qwen-turbo` | Ultra-fast responses | ⭐⭐⭐⭐⭐ |
+| `qwen-math-plus` | Math & calculations | ⭐⭐⭐ |
+| `qwq-32b-preview` | Complex reasoning | ⭐⭐⭐ |
 
-[See all 19 models →](./docs/MODELS_GUIDE.md)
+[See all 19 models →](./MODELS_QUICK_REFERENCE.md)
 
 ## 💡 Use Cases
 
@@ -142,9 +165,43 @@ curl -X POST https://your-api.vercel.app/api/chat/quick \
   -H "Authorization: Bearer TOKEN" \
   -d '{
     "message": "Write a binary search in Python",
-    "model": "qwen3-coder",
+    "model": "qwen-coder-plus",
     "system_prompt": "You are a Python expert. Always include type hints and docstrings."
   }'
+```
+
+### Vision Analysis (NEW!)
+```python
+import requests
+
+# Analyze image
+files = {'files': open('receipt.jpg', 'rb')}
+data = {
+    'message': 'Extract all text from this receipt',
+    'model': 'qwen-vl-max'
+}
+
+response = requests.post(
+    f"{API}/api/chat/send-with-files",
+    headers={"Authorization": f"Bearer {TOKEN}"},
+    files=files,
+    data=data
+)
+print(response.json()["data"]["content"])
+```
+
+### Document Q&A (NEW!)
+```python
+# Chat with PDF
+files = {'files': open('research.pdf', 'rb')}
+data = {'message': 'Summarize the key findings'}
+
+response = requests.post(
+    f"{API}/api/chat/send-with-files",
+    headers={"Authorization": f"Bearer {TOKEN}"},
+    files=files,
+    data=data
+)
 ```
 
 ### Research Tool
@@ -185,16 +242,18 @@ curl -X POST https://your-api.vercel.app/api/admin/token \
 ```
 qwen-api/
 ├── api_server.py          # Main API server
-├── qwen_client.py         # Qwen API wrapper
+├── qwen_client.py         # Qwen API wrapper (with file upload!)
 ├── simple_client.py       # Simplified Python client
 ├── index_v2.html          # Web UI
-├── requirements.txt       # Python dependencies
+├── requirements.txt       # Python dependencies (includes oss2)
 ├── vercel.json            # Vercel configuration
 ├── API_DOCS.md            # Complete API documentation
 ├── DEPLOY.md              # Deployment guide
 │
 ├── docs/                  # Detailed guides
 │   ├── MODELS_GUIDE.md
+│   ├── FILE_UPLOAD_API.md          # 🆕 File upload guide
+│   ├── FILE_TYPES_EXPLAINED.md     # 🆕 Image vs Document
 │   ├── THINKING_AND_SEARCH.md
 │   ├── SYSTEM_PROMPT_COMPLETE.md
 │   └── VERCEL_DEPLOY.md
@@ -203,7 +262,8 @@ qwen-api/
 │   └── test_*.py
 │
 └── examples/              # Example usage
-    └── index.html
+    ├── index.html
+    └── chat_with_files.html        # 🆕 File upload demo
 ```
 
 ## 🐍 Python Client
@@ -254,6 +314,8 @@ Open `index_v2.html` for a beautiful web UI with:
 | Cost | Free (use your account) | Paid |
 | Rate Limits | None | Yes |
 | Models | 19 models | Limited |
+| File Upload | ✅ Images + Documents | ❌ |
+| Vision Analysis | ✅ OCR, image Q&A | ❌ |
 | Thinking Mode | ✅ | ❌ |
 | Internet Search | ✅ | ❌ |
 | Custom Prompts | ✅ | Limited |
@@ -261,10 +323,19 @@ Open `index_v2.html` for a beautiful web UI with:
 
 ## 📚 Documentation
 
+### Core Guides
 - **[API_DOCS.md](./API_DOCS.md)** - Complete API reference
 - **[DEPLOY.md](./DEPLOY.md)** - Deployment guide
-- **[docs/MODELS_GUIDE.md](./docs/MODELS_GUIDE.md)** - All 19 models
-- **[docs/THINKING_AND_SEARCH.md](./docs/THINKING_AND_SEARCH.md)** - Advanced features
+- **[MODELS_QUICK_REFERENCE.md](./MODELS_QUICK_REFERENCE.md)** - 🆕 Model selection guide
+
+### File Upload (NEW!)
+- **[docs/FILE_UPLOAD_API.md](./docs/FILE_UPLOAD_API.md)** - 🆕 File upload complete guide
+- **[docs/FILE_TYPES_EXPLAINED.md](./docs/FILE_TYPES_EXPLAINED.md)** - 🆕 Image vs Document
+- **[SUCCESS_FILE_UPLOAD.md](./SUCCESS_FILE_UPLOAD.md)** - 🆕 Feature summary
+
+### Advanced Features
+- **[docs/MODELS_GUIDE.md](./docs/MODELS_GUIDE.md)** - All 19 models detailed
+- **[docs/THINKING_AND_SEARCH.md](./docs/THINKING_AND_SEARCH.md)** - Thinking & Search modes
 - **[docs/SYSTEM_PROMPT_COMPLETE.md](./docs/SYSTEM_PROMPT_COMPLETE.md)** - System prompts guide
 
 ## 🤝 Contributing

@@ -1,10 +1,10 @@
-"""
-Qwen AI Chat Client
+"""Qwen AI Chat Client
 Unofficial Python client for interacting with Qwen AI Chat API
 """
 
 import requests
 import json
+import os
 from typing import Optional, Dict, List
 import sseclient
 import sys
@@ -15,18 +15,25 @@ import time
 class QwenClient:
     """Client for interacting with Qwen AI Chat API"""
     
-    BASE_URL = "https://chat.qwen.ai/api"
+    # Get base URL from environment or use default
+    BASE_URL = os.getenv("QWEN_API_URL", "https://chat.qwen.ai/api")
     
-    def __init__(self, auth_token: str, auto_refresh: bool = True):
+    def __init__(self, auth_token: str, auto_refresh: bool = True, base_url: Optional[str] = None):
         """
         Initialize Qwen client
         
         Args:
             auth_token: JWT authentication token from Qwen
             auto_refresh: Automatically refresh token when needed
+            base_url: Custom base URL (overrides environment variable)
         """
         self.auth_token = auth_token
         self.auto_refresh = auto_refresh
+        
+        # Allow custom base URL or use class default (from env)
+        if base_url:
+            self.BASE_URL = base_url
+        
         self.session = requests.Session()
         self._update_session_headers()
     
@@ -102,34 +109,35 @@ class QwenClient:
         response.raise_for_status()
         return response.json()
     
-    def get_pinned_chats(self) -> List[Dict]:
         """Get pinned chat conversations"""
         response = self.session.get(f"{self.BASE_URL}/v2/chats/pinned")
         response.raise_for_status()
         return response.json()
     
-    def create_chat(self, model: str = "qwen-max", title: str = "New Chat") -> Dict:
+    def create_chat(self, title: str = "New Chat", model: str = "qwen3-max") -> Dict:
         """
         Create a new chat conversation
         
         Args:
-            model: Model name (default: qwen-max)
             title: Chat title
+            model: Model to use
+        
+        Returns:
+            Dict with chat info including 'id'
         """
         try:
-            # Try different endpoints
+            import time
             payload = {
-                "model_name": model,
-                "title": title
+                "title": title,
+                "models": [model],
+                "chat_mode": "normal",
+                "chat_type": "t2t",
+                "timestamp": int(time.time() * 1000)  # milliseconds
             }
             response = self.session.post(
-                f"{self.BASE_URL}/v2/chats",
+                f"{self.BASE_URL}/v2/chats/new",
                 json=payload
             )
-            
-            if response.status_code != 200:
-                print(f"Debug - Create chat status: {response.status_code}")
-                print(f"Debug - Create chat response: {response.text}")
             
             response.raise_for_status()
             result = response.json()
@@ -138,14 +146,15 @@ class QwenClient:
             if result.get("success") and result.get("data"):
                 return result["data"]
             
+            return result
+            
         except Exception as e:
-            print(f"Debug - Create chat error: {e}")
             raise
     
     def send_message(
         self,
         chat_id: str,
-        message: str,
+        message,  # Can be str or dict with files
         model: str = "qwen3-max",
         parent_id: Optional[str] = None,
         stream: bool = True,
@@ -158,7 +167,7 @@ class QwenClient:
         
         Args:
             chat_id: Chat conversation ID
-            message: Message content
+            message: Message content (str) or message dict with files
             model: Model name (qwen3-max, qwen-plus, qwen-turbo)
             parent_id: Parent message ID for conversation threading (auto-detected if None)
             stream: Enable streaming response
@@ -167,28 +176,34 @@ class QwenClient:
             search_enabled: Enable internet search mode (gets latest information)
         """
         
+        # Handle message as dict (with files) or string
+        if isinstance(message, dict):
+            message_content = message.get('content', '')
+            files = message.get('files', [])
+        else:
+            message_content = message
+            files = []
+        
         # Prepend system prompt if provided
         if system_prompt:
-            message = f"""[INSTRUCTION]
+            message_content = f"""[INSTRUCTION]
 {system_prompt}
 
 [MESSAGE]
-{message}
+{message_content}
 """
         # Auto-detect parent_id from chat history if not provided
-        if not parent_id:
+        if parent_id is None:
             try:
                 chat_data = self.get_chat_history(chat_id)
                 if chat_data.get("success") and chat_data.get("data"):
                     parent_id = chat_data["data"].get("currentId")
             except:
+                # For new chats, parent_id should be null
                 pass
         
         # Generate IDs
         fid = str(uuid.uuid4())
-        if not parent_id:
-            # Fallback: use a random UUID (will work for new chats)
-            parent_id = str(uuid.uuid4())
         
         timestamp = int(time.time())
         
@@ -197,10 +212,9 @@ class QwenClient:
         sub_chat_type = "search" if search_enabled else "t2t"
         
         # Build payload matching Qwen's format
-        # Note: incremental_output=False for better UTF-8 handling with Vietnamese
         payload = {
             "stream": stream,
-            "incremental_output": False,  # Changed to False for proper UTF-8 decoding
+            "incremental_output": True,  # True for streaming output
             "chat_id": chat_id,
             "chat_mode": "normal",
             "model": model,
@@ -211,9 +225,9 @@ class QwenClient:
                     "parentId": parent_id,
                     "childrenIds": [],
                     "role": "user",
-                    "content": message,
+                    "content": message_content,
                     "user_action": "chat",
-                    "files": [],
+                    "files": files,  # Include files here
                     "timestamp": timestamp,
                     "models": [model],
                     "chat_type": chat_type,
@@ -323,14 +337,11 @@ class QwenClient:
                     if isinstance(content, bytes):
                         content = content.decode('utf-8', errors='replace')
                     
-                    # With incremental_output=False, each event contains full response so far
-                    full_response = content
+                    # With incremental_output=True, each event contains only new content
+                    full_response += content
                     
-                    # Print only new content since last print
-                    if len(full_response) > last_printed_length:
-                        new_content = full_response[last_printed_length:]
-                        print(new_content, end="", flush=True)
-                        last_printed_length = len(full_response)
+                    # Print the new content directly
+                    print(content, end="", flush=True)
                         
             except json.JSONDecodeError:
                 continue
@@ -402,6 +413,174 @@ class QwenClient:
         except Exception as e:
             print(f"\nError: {e}")
             raise
+    
+    def get_sts_token(self, filename: str, filesize: int, filetype: str = "image") -> Dict:
+        """
+        Get STS token for uploading file to OSS
+        
+        Args:
+            filename: Name of the file
+            filesize: Size of the file in bytes
+            filetype: Type of file ("image" or "file")
+        
+        Returns:
+            Dict with STS credentials and upload info
+        """
+        response = self.session.post(
+            f"{self.BASE_URL}/v2/files/getstsToken",
+            json={
+                "filename": filename,
+                "filesize": filesize,
+                "filetype": filetype
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def upload_file_to_oss(self, file_path: str, sts_data: Dict) -> str:
+        """
+        Upload file to Alibaba OSS using STS credentials
+        
+        Args:
+            file_path: Path to the file to upload
+            sts_data: STS token data from get_sts_token()
+        
+        Returns:
+            URL of the uploaded file
+        """
+        try:
+            import oss2
+            from oss2 import StsAuth
+        except ImportError:
+            raise ImportError("oss2 package required. Install with: pip install oss2")
+        
+        # Create auth with STS credentials
+        auth = StsAuth(
+            sts_data['access_key_id'],
+            sts_data['access_key_secret'],
+            sts_data['security_token']
+        )
+        
+        # Create bucket instance
+        endpoint = f"https://{sts_data['endpoint']}"
+        bucket = oss2.Bucket(auth, endpoint, sts_data['bucketname'])
+        
+        # Upload file
+        with open(file_path, 'rb') as f:
+            bucket.put_object(sts_data['file_path'], f)
+        
+        # Return the file URL (use pre-signed URL from response)
+        file_url = sts_data.get('file_url', f"https://{sts_data['bucketname']}.{sts_data['endpoint']}/{sts_data['file_path']}")
+        return file_url
+    
+    def upload_file(self, file_path: str, filetype: str = None) -> Dict:
+        """
+        Complete file upload flow: get STS token, upload to OSS, return metadata
+        
+        Args:
+            file_path: Path to the file to upload
+            filetype: Type of file ("image" or "file"). Auto-detected if None.
+        
+        Returns:
+            Dict with file metadata ready to use in messages
+        """
+        from pathlib import Path
+        import mimetypes
+        
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        
+        # Get file info
+        filename = file_path_obj.name
+        filesize = file_path_obj.stat().st_size
+        
+        # Auto-detect filetype if not provided
+        if filetype is None:
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if mime_type and mime_type.startswith('image/'):
+                filetype = "image"
+            else:
+                filetype = "file"
+        
+        # Get STS token
+        sts_response = self.get_sts_token(filename, filesize, filetype)
+        
+        # Extract data from response
+        if sts_response.get('success'):
+            sts_data = sts_response['data']
+        else:
+            raise Exception(f"Failed to get STS token: {sts_response}")
+        
+        # Upload to OSS
+        file_url = self.upload_file_to_oss(file_path, sts_data)
+        
+        # Prepare file metadata
+        mime_type, _ = mimetypes.guess_type(file_path)
+        file_class = "vision" if filetype == "image" else "document"
+        
+        return {
+            "type": filetype,
+            "id": sts_data['file_id'],
+            "url": file_url,
+            "name": filename,
+            "size": filesize,
+            "file_type": mime_type or "application/octet-stream",
+            "file_class": file_class,
+            "status": "uploaded"
+        }
+    
+    def chat_with_files(
+        self,
+        message: str,
+        files: List[str] = None,
+        chat_id: Optional[str] = None,
+        model: str = "qwen3-max",
+        stream: bool = True,
+        thinking_enabled: bool = False
+    ) -> str:
+        """
+        Send a chat message with file attachments
+        
+        Args:
+            message: The message text
+            files: List of file paths to upload and attach
+            chat_id: Existing chat ID or None for new chat
+            model: Model to use
+            stream: Whether to stream the response
+            thinking_enabled: Enable thinking mode
+        
+        Returns:
+            The AI's response text
+        """
+        # Upload files if provided
+        file_metadata = []
+        if files:
+            for file_path in files:
+                print(f"Uploading {file_path}...")
+                metadata = self.upload_file(file_path)
+                file_metadata.append(metadata)
+                print(f"✓ Uploaded: {metadata['name']}")
+        
+        # Create or use existing chat
+        if not chat_id:
+            chat_id = str(uuid.uuid4())
+        
+        # Prepare message with files
+        message_data = {
+            "role": "user",
+            "content": message,
+            "files": file_metadata
+        }
+        
+        # Send message
+        return self.send_message(
+            chat_id=chat_id,
+            message=message_data,
+            model=model,
+            stream=stream,
+            thinking_enabled=thinking_enabled
+        )
 
 
 def main():

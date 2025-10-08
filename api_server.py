@@ -482,6 +482,169 @@ def quick_chat():
         return jsonify({"error": str(e)}), 500
 
 # ============================================================
+# File Upload
+# ============================================================
+
+@app.route('/api/files/sts-token', methods=['POST'])
+@check_security()
+def get_sts_token():
+    """
+    Get STS token for file upload
+    
+    POST /api/files/sts-token
+    {
+        "filename": "example.png",
+        "filesize": 545775,
+        "filetype": "image"  // or "file"
+    }
+    """
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        filesize = data.get('filesize')
+        filetype = data.get('filetype', 'image')
+        
+        if not filename or not filesize:
+            return jsonify({"error": "filename and filesize required"}), 400
+        
+        client = get_client()
+        sts_data = client.get_sts_token(filename, filesize, filetype)
+        
+        return jsonify({
+            "success": True,
+            "data": sts_data
+        })
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/files/upload', methods=['POST'])
+@check_security()
+def upload_file():
+    """
+    Upload file (complete flow: get STS token + upload to OSS)
+    
+    POST /api/files/upload
+    Content-Type: multipart/form-data
+    
+    Form data:
+        file: The file to upload
+        filetype: (optional) "image" or "file"
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "Empty filename"}), 400
+        
+        filetype = request.form.get('filetype')
+        
+        # Save file temporarily
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
+            file.save(tmp.name)
+            tmp_path = tmp.name
+        
+        try:
+            client = get_client()
+            file_metadata = client.upload_file(tmp_path, filetype)
+            
+            return jsonify({
+                "success": True,
+                "data": file_metadata
+            })
+        finally:
+            # Clean up temp file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+                
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/chat/send-with-files', methods=['POST'])
+@check_security()
+def send_message_with_files():
+    """
+    Send message with file attachments
+    
+    POST /api/chat/send-with-files
+    Content-Type: multipart/form-data
+    
+    Form data:
+        message: The message text
+        chat_id: (optional) Existing chat ID
+        model: (optional) Model to use (default: qwen3-max)
+        files: One or more files to attach
+    """
+    try:
+        data = request.form
+        message = data.get('message')
+        chat_id = data.get('chat_id')
+        model = data.get('model', 'qwen3-max')
+        
+        if not message:
+            return jsonify({"error": "message required"}), 400
+        
+        # Handle file uploads
+        files = request.files.getlist('files')
+        if not files:
+            return jsonify({"error": "No files provided"}), 400
+        
+        import tempfile
+        import os
+        
+        tmp_files = []
+        try:
+            # Save files temporarily
+            for file in files:
+                if file.filename:
+                    tmp = tempfile.NamedTemporaryFile(
+                        delete=False, 
+                        suffix=os.path.splitext(file.filename)[1]
+                    )
+                    file.save(tmp.name)
+                    tmp.close()
+                    tmp_files.append(tmp.name)
+            
+            # Send message with files
+            client = get_client()
+            response = client.chat_with_files(
+                message=message,
+                files=tmp_files,
+                chat_id=chat_id,
+                model=model,
+                stream=False
+            )
+            
+            return jsonify({
+                "success": True,
+                "chat_id": chat_id,
+                "data": response
+            })
+            
+        finally:
+            # Clean up temp files
+            for tmp_path in tmp_files:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+                    
+    except ValueError as e:
+        return jsonify({"error": "No authorization token"}), 401
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+# ============================================================
 # Statistics & Info
 # ============================================================
 
@@ -551,6 +714,9 @@ if __name__ == '__main__':
     print(f"  DELETE /api/chats/<id>          - Delete chat")
     print(f"  POST /api/chat/send             - Send message")
     print(f"  POST /api/chat/quick            - Quick chat")
+    print(f"  POST /api/files/sts-token       - Get STS token for upload")
+    print(f"  POST /api/files/upload          - Upload file")
+    print(f"  POST /api/chat/send-with-files  - Send message with files")
     print(f"  GET  /api/stats                 - Get statistics")
     print("\n💡 Usage:")
     print(f"  curl -H 'Authorization: Bearer <token>' http://localhost:{port}/api/chats")
