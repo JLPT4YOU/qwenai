@@ -9,15 +9,75 @@ from qwen_client import QwenClient
 import time
 import json
 import os
+from functools import wraps
 
 app = Flask(__name__)
-CORS(app)
+
+# Security: Configure CORS to only allow specific origins
+ALLOWED_ORIGINS = [
+    'https://jlpt4you.com',
+    'https://www.jlpt4you.com',
+    'http://localhost:3000',  # For local development
+    'http://localhost:5000',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5000'
+]
+
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ALLOWED_ORIGINS,
+        "methods": ["GET", "POST", "DELETE"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Admin-Key"]
+    }
+})
 
 # Cache for clients
 _client_cache = {}
 
 # Token storage file (for persistence)
 TOKEN_FILE = os.path.join(os.path.dirname(__file__), '.token_storage.json')
+
+# Security configuration
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')  # production, development
+ALLOWED_REFERERS = [
+    'https://jlpt4you.com',
+    'https://www.jlpt4you.com',
+    'http://localhost',
+    'http://127.0.0.1'
+]
+
+def check_security():
+    """Security middleware to check origin and referer"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Check environment
+            if ENVIRONMENT == 'production':
+                return jsonify({
+                    "error": "API is only available in development environment"
+                }), 403
+            
+            # Check Origin header
+            origin = request.headers.get('Origin')
+            if origin and origin not in ALLOWED_ORIGINS:
+                return jsonify({
+                    "error": "Access denied: Invalid origin",
+                    "allowed_origins": ALLOWED_ORIGINS
+                }), 403
+            
+            # Check Referer header (backup check)
+            referer = request.headers.get('Referer', '')
+            if referer:
+                is_allowed = any(allowed in referer for allowed in ALLOWED_REFERERS)
+                if not is_allowed:
+                    return jsonify({
+                        "error": "Access denied: Invalid referer",
+                        "allowed_domains": ['jlpt4you.com', 'localhost']
+                    }), 403
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 def load_stored_token():
     """Load token from file"""
@@ -88,6 +148,7 @@ def health():
     })
 
 @app.route('/api/models', methods=['GET'])
+@check_security()
 def list_models():
     """List available Qwen models"""
     try:
@@ -157,6 +218,7 @@ def get_token_info():
         })
 
 @app.route('/api/user/status', methods=['GET'])
+@check_security()
 def user_status():
     """Get user status"""
     try:
@@ -172,6 +234,7 @@ def user_status():
 # ============================================================
 
 @app.route('/api/token/refresh', methods=['POST'])
+@check_security()
 def refresh_token():
     """Refresh authentication token"""
     try:
@@ -192,6 +255,7 @@ def refresh_token():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/token/info', methods=['GET'])
+@check_security()
 def token_info():
     """Get token information"""
     try:
@@ -213,6 +277,7 @@ def token_info():
 # ============================================================
 
 @app.route('/api/chats', methods=['GET'])
+@check_security()
 def list_chats():
     """List all chats"""
     page = request.args.get('page', 1, type=int)
@@ -231,6 +296,7 @@ def list_chats():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/chats/<chat_id>', methods=['GET'])
+@check_security()
 def get_chat(chat_id):
     """Get chat history"""
     try:
@@ -246,6 +312,7 @@ def get_chat(chat_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/chats/<chat_id>', methods=['DELETE'])
+@check_security()
 def delete_chat(chat_id):
     """Delete a chat"""
     try:
@@ -265,6 +332,7 @@ def delete_chat(chat_id):
 # ============================================================
 
 @app.route('/api/chat/send', methods=['POST'])
+@check_security()
 def send_message():
     """
     Send a message to chat
@@ -337,6 +405,7 @@ def send_message():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/chat/quick', methods=['POST'])
+@check_security()
 def quick_chat():
     """
     Quick chat - sends message to most recent chat
@@ -417,6 +486,7 @@ def quick_chat():
 # ============================================================
 
 @app.route('/api/stats', methods=['GET'])
+@check_security()
 def get_stats():
     """Get user statistics"""
     try:
